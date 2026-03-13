@@ -79,8 +79,8 @@ st.markdown(
         font-size: 0.75rem;
         color: {STEEL_GRAY};
     }}
-    .positive {{ color: {BRAND_RED}; }}
-    .negative {{ color: {STEEL_GRAY}; }}
+    .positive {{ color: #00A63E; }}
+    .negative {{ color: {BRAND_RED}; }}
     .neutral  {{ color: {BRAND_CHARCOAL}; }}
 
     /* Streamlit metric delta override */
@@ -337,10 +337,10 @@ with col_right:
         # Format as percentages and color-code with brand palette
         styled = monthly.style.format("{:.2%}", na_rep="—").map(
             lambda v: (
-                f"color: {BRAND_RED}; font-weight: 600"
+                "color: #00A63E; font-weight: 600"
                 if isinstance(v, (int, float)) and v > 0
                 else (
-                    f"color: {STEEL_GRAY}; font-weight: 600"
+                    f"color: {BRAND_RED}; font-weight: 600"
                     if isinstance(v, (int, float)) and v < 0
                     else "color: #A0A4AE"
                 )
