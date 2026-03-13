@@ -122,8 +122,6 @@ uploaded_file = st.sidebar.file_uploader(
     help="Export your trade history from the WeBull mobile app. Supports .xlsx and .csv files.",
 )
 
-use_sample = st.sidebar.checkbox("Use sample data (demo)", value=uploaded_file is None)
-
 st.sidebar.markdown("---")
 st.sidebar.markdown(
     f"**Starting Cash:** ${STARTING_CASH:,.0f}  \n"
@@ -135,31 +133,15 @@ st.sidebar.markdown(
 # ---------------------------------------------------------------------------
 # Load data
 # ---------------------------------------------------------------------------
-def load_sample_trades() -> pd.DataFrame:
-    """Load sample/local trades from the data folder."""
-    import glob
-    # Look for any xlsx or csv file in data/ (prefer xlsx)
-    for pattern in ["data/*.xlsx", "data/*.xls", "data/*.csv"]:
-        files = sorted(glob.glob(pattern))
-        if files:
-            try:
-                return load_trades_from_file(files[0])
-            except Exception:
-                continue
-    return pd.DataFrame(
-        columns=["date", "trade_date", "ticker", "side", "quantity", "price", "total"]
-    )
-
-
 if uploaded_file is not None:
     try:
         trades = load_trades_from_upload(uploaded_file)
         st.sidebar.success(f"Loaded {len(trades)} trades")
     except Exception as e:
-        st.sidebar.error(f"Error parsing CSV: {e}")
-        trades = load_sample_trades()
-elif use_sample:
-    trades = load_sample_trades()
+        st.sidebar.error(f"Error parsing file: {e}")
+        trades = pd.DataFrame(
+            columns=["date", "trade_date", "ticker", "side", "quantity", "price", "total"]
+        )
 else:
     trades = pd.DataFrame(
         columns=["date", "trade_date", "ticker", "side", "quantity", "price", "total"]
