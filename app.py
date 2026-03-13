@@ -214,28 +214,29 @@ def fmt_num(val, decimals=2):
 # ---------------------------------------------------------------------------
 st.markdown(f"**Inception:** {inception_date} &nbsp;|&nbsp; **Last Updated:** {date.today()}")
 
-kpi_cols = st.columns(9)
-
-with kpi_cols[0]:
+row1 = st.columns(4)
+with row1[0]:
     st.metric("Portfolio Value", f"${current_value:,.0f}")
-with kpi_cols[1]:
+with row1[1]:
     st.metric("Total Return", f"{total_ret:+.2%}", delta=f"SPY: {benchmark_total_ret:+.2%}")
-with kpi_cols[2]:
+with row1[2]:
     cagr_display = f"{portfolio_cagr:+.2%}" if portfolio_cagr is not None else "—"
     cagr_delta = f"SPY: {benchmark_cagr_val:+.2%}" if benchmark_cagr_val is not None else "Need 30+ days"
     st.metric("CAGR", cagr_display, delta=cagr_delta)
-with kpi_cols[3]:
+with row1[3]:
     st.metric("Max Drawdown", f"{portfolio_mdd:.2%}")
-with kpi_cols[4]:
+
+row2 = st.columns(5)
+with row2[0]:
     st.metric("Sharpe Ratio", f"{portfolio_sharpe:.2f}")
-with kpi_cols[5]:
+with row2[1]:
     st.metric("Sortino Ratio", f"{portfolio_sortino:.2f}")
-with kpi_cols[6]:
+with row2[2]:
     st.metric("Beta vs SPY", f"{portfolio_beta:.2f}")
-with kpi_cols[7]:
+with row2[3]:
     uc_display = f"{portfolio_up_capture:.0f}%" if portfolio_up_capture is not None else "—"
     st.metric("Up Capture", uc_display)
-with kpi_cols[8]:
+with row2[4]:
     dc_display = f"{portfolio_down_capture:.0f}%" if portfolio_down_capture is not None else "—"
     st.metric("Down Capture", dc_display)
 
