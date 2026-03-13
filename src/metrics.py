@@ -205,6 +205,206 @@ def annual_returns(equity_curve: pd.DataFrame) -> pd.Series:
     return yearly_ret
 
 
+# -----------------------------------------------------------------------
+# Rolling metrics
+# -----------------------------------------------------------------------
+
+def rolling_sharpe(
+    equity_curve: pd.DataFrame, windows: list[int] = [30, 60, 90]
+) -> pd.DataFrame:
+    """Rolling annualized Sharpe ratio for multiple windows."""
+    if len(equity_curve) < min(windows):
+        return pd.DataFrame({"date": equity_curve["date"]})
+    daily_rf = RISK_FREE_RATE / TRADING_DAYS_PER_YEAR
+    excess = equity_curve["daily_return"] - daily_rf
+    result = pd.DataFrame({"date": equity_curve["date"]})
+    for w in windows:
+        if len(equity_curve) >= w:
+            roll_mean = excess.rolling(w).mean()
+            roll_std = excess.rolling(w).std()
+            result[f"{w}d"] = (roll_mean / roll_std) * np.sqrt(TRADING_DAYS_PER_YEAR)
+    return result
+
+
+def rolling_beta(
+    portfolio_curve: pd.DataFrame,
+    benchmark_curve: pd.DataFrame,
+    windows: list[int] = [30, 60, 90],
+) -> pd.DataFrame:
+    """Rolling beta vs benchmark for multiple windows."""
+    p_ret = portfolio_curve.set_index("date")["daily_return"]
+    b_ret = benchmark_curve.set_index("date")["daily_return"]
+    aligned = pd.DataFrame({"port": p_ret, "bench": b_ret}).dropna()
+    if len(aligned) < min(windows):
+        return pd.DataFrame({"date": aligned.index})
+    result = pd.DataFrame({"date": aligned.index})
+    for w in windows:
+        if len(aligned) >= w:
+            cov = aligned["port"].rolling(w).cov(aligned["bench"])
+            var = aligned["bench"].rolling(w).var()
+            result[f"{w}d"] = (cov / var).replace([np.inf, -np.inf], np.nan).values
+    return result
+
+
+def rolling_volatility(
+    equity_curve: pd.DataFrame, windows: list[int] = [30, 60, 90]
+) -> pd.DataFrame:
+    """Rolling annualized volatility for multiple windows."""
+    if len(equity_curve) < min(windows):
+        return pd.DataFrame({"date": equity_curve["date"]})
+    result = pd.DataFrame({"date": equity_curve["date"]})
+    for w in windows:
+        if len(equity_curve) >= w:
+            result[f"{w}d"] = (
+                equity_curve["daily_return"].rolling(w).std()
+                * np.sqrt(TRADING_DAYS_PER_YEAR)
+            )
+    return result
+
+
+# -----------------------------------------------------------------------
+# Top drawdowns
+# -----------------------------------------------------------------------
+
+def top_drawdowns(equity_curve: pd.DataFrame, n: int = 5) -> pd.DataFrame:
+    """
+    Identify the top N drawdown periods.
+    Returns DataFrame with: Start, Trough, Recovery, Depth, Duration (days).
+    """
+    if len(equity_curve) < 2:
+        return pd.DataFrame(
+            columns=["Start", "Trough", "Recovery", "Depth", "Duration (days)"]
+        )
+
+    equity = equity_curve["total_equity"].values
+    dates = equity_curve["date"].values
+    running_max = np.maximum.accumulate(equity)
+    dd_pct = (equity - running_max) / running_max
+
+    drawdowns = []
+    start_i = None
+
+    for i in range(len(dd_pct)):
+        if dd_pct[i] < -1e-8 and start_i is None:
+            # Peak was the day before the decline started
+            start_i = max(0, i - 1)
+        elif dd_pct[i] >= -1e-8 and start_i is not None:
+            # Recovered
+            trough_offset = int(np.argmin(dd_pct[start_i : i + 1]))
+            trough_i = start_i + trough_offset
+            d_start = pd.Timestamp(dates[start_i])
+            d_end = pd.Timestamp(dates[i])
+            drawdowns.append(
+                {
+                    "Start": dates[start_i],
+                    "Trough": dates[trough_i],
+                    "Recovery": dates[i],
+                    "Depth": dd_pct[trough_i],
+                    "Duration (days)": (d_end - d_start).days,
+                }
+            )
+            start_i = None
+
+    # Ongoing drawdown
+    if start_i is not None:
+        trough_offset = int(np.argmin(dd_pct[start_i:]))
+        trough_i = start_i + trough_offset
+        d_start = pd.Timestamp(dates[start_i])
+        d_end = pd.Timestamp(dates[-1])
+        drawdowns.append(
+            {
+                "Start": dates[start_i],
+                "Trough": dates[trough_i],
+                "Recovery": "Ongoing",
+                "Depth": dd_pct[trough_i],
+                "Duration (days)": (d_end - d_start).days,
+            }
+        )
+
+    if not drawdowns:
+        return pd.DataFrame(
+            columns=["Start", "Trough", "Recovery", "Depth", "Duration (days)"]
+        )
+
+    df = pd.DataFrame(drawdowns)
+    df = df.sort_values("Depth").head(n).reset_index(drop=True)
+    df.index = df.index + 1
+    df.index.name = "Rank"
+    return df
+
+
+# -----------------------------------------------------------------------
+# Capture ratios
+# -----------------------------------------------------------------------
+
+def up_capture(
+    portfolio_curve: pd.DataFrame,
+    benchmark_curve: pd.DataFrame,
+    min_days: int = 20,
+) -> float | None:
+    """
+    Up capture ratio (%).
+    Measures portfolio return on days the benchmark is positive,
+    as a ratio of the benchmark return on those same days.
+    >100 = captures more upside than benchmark.
+    """
+    p_ret = portfolio_curve.set_index("date")["daily_return"]
+    b_ret = benchmark_curve.set_index("date")["daily_return"]
+    aligned = pd.DataFrame({"port": p_ret, "bench": b_ret}).dropna()
+
+    up_days = aligned[aligned["bench"] > 0]
+    if len(up_days) < min_days:
+        return None
+
+    port_compound = (1 + up_days["port"]).prod()
+    bench_compound = (1 + up_days["bench"]).prod()
+    if bench_compound == 1:
+        return None
+
+    n = len(up_days)
+    port_geo = port_compound ** (1 / n) - 1
+    bench_geo = bench_compound ** (1 / n) - 1
+    if bench_geo == 0:
+        return None
+    return (port_geo / bench_geo) * 100
+
+
+def down_capture(
+    portfolio_curve: pd.DataFrame,
+    benchmark_curve: pd.DataFrame,
+    min_days: int = 20,
+) -> float | None:
+    """
+    Down capture ratio (%).
+    Measures portfolio return on days the benchmark is negative,
+    as a ratio of the benchmark return on those same days.
+    <100 = protects more on downside than benchmark.
+    """
+    p_ret = portfolio_curve.set_index("date")["daily_return"]
+    b_ret = benchmark_curve.set_index("date")["daily_return"]
+    aligned = pd.DataFrame({"port": p_ret, "bench": b_ret}).dropna()
+
+    down_days = aligned[aligned["bench"] < 0]
+    if len(down_days) < min_days:
+        return None
+
+    port_compound = (1 + down_days["port"]).prod()
+    bench_compound = (1 + down_days["bench"]).prod()
+    if bench_compound == 1:
+        return None
+
+    n = len(down_days)
+    port_geo = port_compound ** (1 / n) - 1
+    bench_geo = bench_compound ** (1 / n) - 1
+    if bench_geo == 0:
+        return None
+    return (port_geo / bench_geo) * 100
+
+
+# -----------------------------------------------------------------------
+# Trade statistics
+# -----------------------------------------------------------------------
+
 def trade_statistics(closed_trades: pd.DataFrame) -> dict:
     """
     Compute trade-level statistics from closed P&L DataFrame.

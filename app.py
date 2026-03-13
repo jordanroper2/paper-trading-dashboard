@@ -25,9 +25,12 @@ from src.portfolio import build_equity_curve, get_trade_pnl
 from src.metrics import (
     cagr, total_return, max_drawdown, sharpe_ratio, sortino_ratio,
     beta, monthly_returns, annual_returns, trade_statistics,
-    drawdown_series,
+    drawdown_series, rolling_sharpe, rolling_beta, rolling_volatility,
+    top_drawdowns, up_capture, down_capture,
 )
 from src.benchmark import fetch_benchmark, comparison_table
+from src.exposure import build_exposure_table, sector_allocation, concentration_metrics
+from src.tearsheet import generate_tearsheet
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -129,6 +132,9 @@ st.sidebar.markdown(
     f"**Risk-Free Rate:** {RISK_FREE_RATE:.1%}"
 )
 
+# PDF tear sheet download (populated after data loads)
+tearsheet_placeholder = st.sidebar.empty()
+
 
 # ---------------------------------------------------------------------------
 # Load data
@@ -181,6 +187,8 @@ portfolio_beta = beta(portfolio_curve, benchmark_curve)
 
 benchmark_total_ret = total_return(benchmark_curve) if not benchmark_curve.empty else 0.0
 benchmark_cagr_val = cagr(benchmark_curve) if not benchmark_curve.empty else None
+portfolio_up_capture = up_capture(portfolio_curve, benchmark_curve) if not benchmark_curve.empty else None
+portfolio_down_capture = down_capture(portfolio_curve, benchmark_curve) if not benchmark_curve.empty else None
 
 
 # ---------------------------------------------------------------------------
@@ -206,24 +214,30 @@ def fmt_num(val, decimals=2):
 # ---------------------------------------------------------------------------
 st.markdown(f"**Inception:** {inception_date} &nbsp;|&nbsp; **Last Updated:** {date.today()}")
 
-col1, col2, col3, col4, col5, col6, col7 = st.columns(7)
+kpi_cols = st.columns(9)
 
-with col1:
+with kpi_cols[0]:
     st.metric("Portfolio Value", f"${current_value:,.0f}")
-with col2:
+with kpi_cols[1]:
     st.metric("Total Return", f"{total_ret:+.2%}", delta=f"SPY: {benchmark_total_ret:+.2%}")
-with col3:
+with kpi_cols[2]:
     cagr_display = f"{portfolio_cagr:+.2%}" if portfolio_cagr is not None else "—"
     cagr_delta = f"SPY: {benchmark_cagr_val:+.2%}" if benchmark_cagr_val is not None else "Need 30+ days"
     st.metric("CAGR", cagr_display, delta=cagr_delta)
-with col4:
+with kpi_cols[3]:
     st.metric("Max Drawdown", f"{portfolio_mdd:.2%}")
-with col5:
+with kpi_cols[4]:
     st.metric("Sharpe Ratio", f"{portfolio_sharpe:.2f}")
-with col6:
+with kpi_cols[5]:
     st.metric("Sortino Ratio", f"{portfolio_sortino:.2f}")
-with col7:
+with kpi_cols[6]:
     st.metric("Beta vs SPY", f"{portfolio_beta:.2f}")
+with kpi_cols[7]:
+    uc_display = f"{portfolio_up_capture:.0f}%" if portfolio_up_capture is not None else "—"
+    st.metric("Up Capture", uc_display)
+with kpi_cols[8]:
+    dc_display = f"{portfolio_down_capture:.0f}%" if portfolio_down_capture is not None else "—"
+    st.metric("Down Capture", dc_display)
 
 st.markdown("---")
 
@@ -300,6 +314,194 @@ fig.update_yaxes(title_text="Portfolio Value ($)", row=1, col=1, tickprefix="$",
 fig.update_yaxes(title_text="Drawdown", row=2, col=1, tickformat=".1%")
 
 st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------------------------------------------------------
+# Rolling Metrics (Sharpe, Beta, Volatility)
+# ---------------------------------------------------------------------------
+st.subheader("Rolling Metrics")
+
+roll_tab1, roll_tab2, roll_tab3 = st.tabs(["Rolling Sharpe", "Rolling Beta", "Rolling Volatility"])
+
+ROLLING_COLORS = {
+    "30d": BRAND_RED,
+    "60d": STEEL_GRAY,
+    "90d": BRAND_CHARCOAL,
+}
+
+with roll_tab1:
+    r_sharpe = rolling_sharpe(portfolio_curve)
+    data_cols = [c for c in r_sharpe.columns if c != "date"]
+    if data_cols:
+        fig_rs = go.Figure()
+        for col in data_cols:
+            fig_rs.add_trace(go.Scatter(
+                x=r_sharpe["date"], y=r_sharpe[col],
+                name=col, line=dict(color=ROLLING_COLORS.get(col, BRAND_RED), width=1.5),
+                hovertemplate="%{y:.2f}<extra>" + col + "</extra>",
+            ))
+        fig_rs.add_hline(y=0, line_dash="dot", line_color=GRID_COLOR)
+        fig_rs.update_layout(
+            height=300, template="plotly_white",
+            paper_bgcolor=BRAND_BG, plot_bgcolor=BRAND_BG,
+            font=dict(color=BRAND_CHARCOAL),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=50, r=20, t=30, b=30),
+            yaxis_title="Sharpe Ratio",
+        )
+        fig_rs.update_xaxes(gridcolor=GRID_COLOR, zeroline=False)
+        fig_rs.update_yaxes(gridcolor=GRID_COLOR, zeroline=False)
+        st.plotly_chart(fig_rs, use_container_width=True)
+    else:
+        st.info("Need at least 30 days of data for rolling Sharpe")
+
+with roll_tab2:
+    r_beta = rolling_beta(portfolio_curve, benchmark_curve)
+    data_cols = [c for c in r_beta.columns if c != "date"]
+    if data_cols:
+        fig_rb = go.Figure()
+        for col in data_cols:
+            fig_rb.add_trace(go.Scatter(
+                x=r_beta["date"], y=r_beta[col],
+                name=col, line=dict(color=ROLLING_COLORS.get(col, BRAND_RED), width=1.5),
+                hovertemplate="%{y:.2f}<extra>" + col + "</extra>",
+            ))
+        fig_rb.add_hline(y=1, line_dash="dot", line_color=GRID_COLOR, annotation_text="Market (1.0)")
+        fig_rb.update_layout(
+            height=300, template="plotly_white",
+            paper_bgcolor=BRAND_BG, plot_bgcolor=BRAND_BG,
+            font=dict(color=BRAND_CHARCOAL),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=50, r=20, t=30, b=30),
+            yaxis_title="Beta",
+        )
+        fig_rb.update_xaxes(gridcolor=GRID_COLOR, zeroline=False)
+        fig_rb.update_yaxes(gridcolor=GRID_COLOR, zeroline=False)
+        st.plotly_chart(fig_rb, use_container_width=True)
+    else:
+        st.info("Need at least 30 days of data for rolling Beta")
+
+with roll_tab3:
+    r_vol = rolling_volatility(portfolio_curve)
+    data_cols = [c for c in r_vol.columns if c != "date"]
+    if data_cols:
+        fig_rv = go.Figure()
+        for col in data_cols:
+            fig_rv.add_trace(go.Scatter(
+                x=r_vol["date"], y=r_vol[col],
+                name=col, line=dict(color=ROLLING_COLORS.get(col, BRAND_RED), width=1.5),
+                hovertemplate="%{y:.2%}<extra>" + col + "</extra>",
+            ))
+        fig_rv.update_layout(
+            height=300, template="plotly_white",
+            paper_bgcolor=BRAND_BG, plot_bgcolor=BRAND_BG,
+            font=dict(color=BRAND_CHARCOAL),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=50, r=20, t=30, b=30),
+            yaxis_title="Annualized Volatility",
+            yaxis_tickformat=".1%",
+        )
+        fig_rv.update_xaxes(gridcolor=GRID_COLOR, zeroline=False)
+        fig_rv.update_yaxes(gridcolor=GRID_COLOR, zeroline=False)
+        st.plotly_chart(fig_rv, use_container_width=True)
+    else:
+        st.info("Need at least 30 days of data for rolling Volatility")
+
+st.markdown("---")
+
+# ---------------------------------------------------------------------------
+# Drawdown Table (Top 5)
+# ---------------------------------------------------------------------------
+st.subheader("Top Drawdowns")
+
+dd_table = top_drawdowns(portfolio_curve)
+if not dd_table.empty:
+    dd_display = dd_table.copy()
+    dd_display["Depth"] = dd_display["Depth"].map("{:.2%}".format)
+    st.dataframe(dd_display, use_container_width=True)
+else:
+    st.info("No drawdown periods detected yet")
+
+st.markdown("---")
+
+# ---------------------------------------------------------------------------
+# Exposure Breakdown
+# ---------------------------------------------------------------------------
+st.subheader("Exposure Breakdown")
+
+exposure_df = build_exposure_table(trades, current_value)
+
+if not exposure_df.empty:
+    conc = concentration_metrics(exposure_df)
+
+    # Concentration KPIs
+    exp_cols = st.columns(4)
+    with exp_cols[0]:
+        st.metric("Positions", conc["num_positions"])
+    with exp_cols[1]:
+        st.metric("Top 5 Weight", f"{conc['top5_weight']:.1%}")
+    with exp_cols[2]:
+        st.metric("HHI (Concentration)", f"{conc['hhi']:.4f}")
+    with exp_cols[3]:
+        st.metric("Gross Exposure", f"{conc['gross_exposure']:.1%}")
+
+    chart_left, chart_right = st.columns(2)
+
+    with chart_left:
+        # Sector allocation pie
+        sectors = sector_allocation(exposure_df)
+        fig_pie = go.Figure(go.Pie(
+            labels=sectors["Sector"],
+            values=sectors["Weight"],
+            hole=0.45,
+            marker=dict(colors=[
+                BRAND_RED, STEEL_GRAY, BRAND_CHARCOAL, "#E8927C",
+                "#A3B5C9", "#D4A0A0", "#8FA89E", "#C4B08B",
+                "#7A8BA0", "#B0BEC5", "#D4A373", "#9E9E9E",
+            ]),
+            textinfo="label+percent",
+            textfont=dict(size=10),
+        ))
+        fig_pie.update_layout(
+            height=350, template="plotly_white",
+            paper_bgcolor=BRAND_BG, font=dict(color=BRAND_CHARCOAL),
+            title=dict(text="Sector Allocation", font=dict(size=14)),
+            margin=dict(l=20, r=20, t=40, b=20),
+            showlegend=False,
+        )
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with chart_right:
+        # Top holdings bar chart
+        top_n = exposure_df.head(10)
+        fig_bar = go.Figure(go.Bar(
+            x=top_n["Weight"],
+            y=top_n["Ticker"],
+            orientation="h",
+            marker=dict(color=BRAND_RED),
+            hovertemplate="%{y}: %{x:.1%}<extra></extra>",
+        ))
+        fig_bar.update_layout(
+            height=350, template="plotly_white",
+            paper_bgcolor=BRAND_BG, plot_bgcolor=BRAND_BG,
+            font=dict(color=BRAND_CHARCOAL),
+            title=dict(text="Top Holdings by Weight", font=dict(size=14)),
+            margin=dict(l=60, r=20, t=40, b=30),
+            xaxis=dict(tickformat=".0%", gridcolor=GRID_COLOR),
+            yaxis=dict(autorange="reversed"),
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # Holdings detail table
+    with st.expander("Full Holdings Detail"):
+        hold_display = exposure_df.copy()
+        hold_display["Price"] = hold_display["Price"].map("${:,.2f}".format)
+        hold_display["Market Value"] = hold_display["Market Value"].map("${:,.0f}".format)
+        hold_display["Weight"] = hold_display["Weight"].map("{:.2%}".format)
+        st.dataframe(hold_display, hide_index=True, use_container_width=True)
+else:
+    st.info("No open positions to analyze")
+
+st.markdown("---")
 
 # ---------------------------------------------------------------------------
 # Performance comparison table + Monthly returns
@@ -422,6 +624,39 @@ if not closed_trades.empty:
         hide_index=True,
         use_container_width=True,
     )
+
+# ---------------------------------------------------------------------------
+# PDF Tear Sheet (sidebar download)
+# ---------------------------------------------------------------------------
+from src.benchmark import portfolio_metrics as _pm, _annualized_volatility
+
+_ts_metrics = {
+    "total_return": total_ret,
+    "cagr": portfolio_cagr,
+    "max_drawdown": portfolio_mdd,
+    "sharpe": portfolio_sharpe,
+    "sortino": portfolio_sortino,
+    "beta": portfolio_beta,
+    "alpha": None,
+    "volatility": _annualized_volatility(portfolio_curve),
+    "up_capture": portfolio_up_capture,
+    "down_capture": portfolio_down_capture,
+}
+
+try:
+    pdf_bytes = generate_tearsheet(
+        portfolio_curve, benchmark_curve,
+        _ts_metrics, dd_table, monthly,
+    )
+    tearsheet_placeholder.download_button(
+        label="📄 Download Tear Sheet (PDF)",
+        data=pdf_bytes,
+        file_name=f"RAG_tearsheet_{date.today()}.pdf",
+        mime="application/pdf",
+        use_container_width=True,
+    )
+except Exception:
+    pass  # Silently skip if PDF generation fails
 
 # ---------------------------------------------------------------------------
 # Footer
