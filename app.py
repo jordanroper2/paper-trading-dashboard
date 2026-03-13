@@ -46,25 +46,27 @@ st.set_page_config(
 # Brand palette (derived from Roper Advisory Group logo)
 # ---------------------------------------------------------------------------
 BRAND_RED = "#D4213D"
-BRAND_DARK = "#0C0E14"
-BRAND_CARD = "#151820"
+BRAND_CHARCOAL = "#1C1D2A"
+BRAND_BG = "#FFFFFF"
+BRAND_CARD_BG = "#F5F5F7"
 STEEL_GRAY = "#6B7A8D"
-MUTED_RED = "#7A2030"
+MUTED_RED = "#D4213D"
+GRID_COLOR = "#E8E8EC"
 
 st.markdown(
     f"""
     <style>
     /* Metric cards */
     .metric-card {{
-        background-color: {BRAND_CARD};
+        background-color: {BRAND_CARD_BG};
         border-radius: 8px;
         padding: 16px;
         text-align: center;
-        border: 1px solid #2D222A;
+        border: 1px solid #E0E0E4;
     }}
     .metric-label {{
         font-size: 0.8rem;
-        color: #8892A0;
+        color: {STEEL_GRAY};
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }}
@@ -75,30 +77,25 @@ st.markdown(
     }}
     .metric-compare {{
         font-size: 0.75rem;
-        color: #8892A0;
+        color: {STEEL_GRAY};
     }}
     .positive {{ color: {BRAND_RED}; }}
     .negative {{ color: {STEEL_GRAY}; }}
-    .neutral  {{ color: #F0F0F0; }}
+    .neutral  {{ color: {BRAND_CHARCOAL}; }}
 
-    /* Streamlit metric delta override — positive = red, negative = gray */
+    /* Streamlit metric delta override */
     [data-testid="stMetricDelta"] svg {{
         display: none;
     }}
 
     /* Divider styling */
     hr {{
-        border-color: #1E2230 !important;
+        border-color: #E0E0E4 !important;
     }}
 
     /* Subtle red accent on sidebar */
     [data-testid="stSidebar"] {{
-        border-right: 2px solid #2A1520 !important;
-    }}
-
-    /* Dataframe header accent */
-    .stDataFrame thead th {{
-        background-color: #1A1520 !important;
+        border-right: 2px solid {BRAND_RED} !important;
     }}
     </style>
     """,
@@ -298,7 +295,7 @@ fig.add_trace(
         name="Drawdown",
         fill="tozeroy",
         line=dict(color=MUTED_RED, width=1),
-        fillcolor="rgba(122, 32, 48, 0.25)",
+        fillcolor="rgba(212, 33, 61, 0.12)",
         hovertemplate="%{y:.2%}<extra>Drawdown</extra>",
     ),
     row=2,
@@ -307,16 +304,16 @@ fig.add_trace(
 
 fig.update_layout(
     height=600,
-    template="plotly_dark",
-    paper_bgcolor=BRAND_DARK,
-    plot_bgcolor=BRAND_DARK,
+    template="plotly_white",
+    paper_bgcolor=BRAND_BG,
+    plot_bgcolor=BRAND_BG,
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     margin=dict(l=60, r=20, t=40, b=40),
     hovermode="x unified",
-    font=dict(color="#C0C4CC"),
+    font=dict(color=BRAND_CHARCOAL),
 )
-fig.update_xaxes(gridcolor="#1E2230", zeroline=False)
-fig.update_yaxes(gridcolor="#1E2230", zeroline=False)
+fig.update_xaxes(gridcolor=GRID_COLOR, zeroline=False)
+fig.update_yaxes(gridcolor=GRID_COLOR, zeroline=False)
 fig.update_yaxes(title_text="Portfolio Value ($)", row=1, col=1, tickprefix="$", tickformat=",")
 fig.update_yaxes(title_text="Drawdown", row=2, col=1, tickformat=".1%")
 
@@ -345,7 +342,7 @@ with col_right:
                 else (
                     f"color: {STEEL_GRAY}; font-weight: 600"
                     if isinstance(v, (int, float)) and v < 0
-                    else "color: #555B68"
+                    else "color: #A0A4AE"
                 )
             )
         )
