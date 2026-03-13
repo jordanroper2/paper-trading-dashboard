@@ -33,8 +33,8 @@ from src.benchmark import fetch_benchmark, comparison_table
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Paper Trading Dashboard",
-    page_icon="📈",
+    page_title="Roper Advisory Group — Paper Trading",
+    page_icon="🔺",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -42,34 +42,64 @@ st.set_page_config(
 # ---------------------------------------------------------------------------
 # Custom CSS
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Brand palette (derived from Roper Advisory Group logo)
+# ---------------------------------------------------------------------------
+BRAND_RED = "#D4213D"
+BRAND_DARK = "#0C0E14"
+BRAND_CARD = "#151820"
+STEEL_GRAY = "#6B7A8D"
+MUTED_RED = "#7A2030"
+
 st.markdown(
-    """
+    f"""
     <style>
-    .metric-card {
-        background-color: #1A1D23;
+    /* Metric cards */
+    .metric-card {{
+        background-color: {BRAND_CARD};
         border-radius: 8px;
         padding: 16px;
         text-align: center;
-        border: 1px solid #2D3139;
-    }
-    .metric-label {
+        border: 1px solid #2D222A;
+    }}
+    .metric-label {{
         font-size: 0.8rem;
-        color: #888;
+        color: #8892A0;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-    }
-    .metric-value {
+    }}
+    .metric-value {{
         font-size: 1.5rem;
         font-weight: 700;
         margin: 4px 0;
-    }
-    .metric-compare {
+    }}
+    .metric-compare {{
         font-size: 0.75rem;
-        color: #888;
-    }
-    .positive { color: #00C805; }
-    .negative { color: #FF4444; }
-    .neutral { color: #FAFAFA; }
+        color: #8892A0;
+    }}
+    .positive {{ color: {BRAND_RED}; }}
+    .negative {{ color: {STEEL_GRAY}; }}
+    .neutral  {{ color: #F0F0F0; }}
+
+    /* Streamlit metric delta override — positive = red, negative = gray */
+    [data-testid="stMetricDelta"] svg {{
+        display: none;
+    }}
+
+    /* Divider styling */
+    hr {{
+        border-color: #1E2230 !important;
+    }}
+
+    /* Subtle red accent on sidebar */
+    [data-testid="stSidebar"] {{
+        border-right: 2px solid #2A1520 !important;
+    }}
+
+    /* Dataframe header accent */
+    .stDataFrame thead th {{
+        background-color: #1A1520 !important;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -142,7 +172,7 @@ else:
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
-st.title("📈 Paper Trading Dashboard")
+st.title("Paper Trading Dashboard")
 
 if trades.empty:
     st.info(
@@ -238,7 +268,7 @@ fig.add_trace(
         x=portfolio_curve["date"],
         y=portfolio_curve["total_equity"],
         name="Portfolio",
-        line=dict(color="#00C805", width=2),
+        line=dict(color=BRAND_RED, width=2.5),
         hovertemplate="$%{y:,.0f}<extra>Portfolio</extra>",
     ),
     row=1,
@@ -252,7 +282,7 @@ if not benchmark_curve.empty:
             x=benchmark_curve["date"],
             y=benchmark_curve["total_equity"],
             name=f"{BENCHMARK_TICKER}",
-            line=dict(color="#4A90D9", width=2, dash="dot"),
+            line=dict(color=STEEL_GRAY, width=1.5, dash="dot"),
             hovertemplate="$%{y:,.0f}<extra>SPY</extra>",
         ),
         row=1,
@@ -267,8 +297,8 @@ fig.add_trace(
         y=dd["drawdown"],
         name="Drawdown",
         fill="tozeroy",
-        line=dict(color="#FF4444", width=1),
-        fillcolor="rgba(255, 68, 68, 0.3)",
+        line=dict(color=MUTED_RED, width=1),
+        fillcolor="rgba(122, 32, 48, 0.25)",
         hovertemplate="%{y:.2%}<extra>Drawdown</extra>",
     ),
     row=2,
@@ -278,12 +308,15 @@ fig.add_trace(
 fig.update_layout(
     height=600,
     template="plotly_dark",
-    paper_bgcolor="#0E1117",
-    plot_bgcolor="#0E1117",
+    paper_bgcolor=BRAND_DARK,
+    plot_bgcolor=BRAND_DARK,
     legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     margin=dict(l=60, r=20, t=40, b=40),
     hovermode="x unified",
+    font=dict(color="#C0C4CC"),
 )
+fig.update_xaxes(gridcolor="#1E2230", zeroline=False)
+fig.update_yaxes(gridcolor="#1E2230", zeroline=False)
 fig.update_yaxes(title_text="Portfolio Value ($)", row=1, col=1, tickprefix="$", tickformat=",")
 fig.update_yaxes(title_text="Drawdown", row=2, col=1, tickformat=".1%")
 
@@ -304,15 +337,15 @@ with col_right:
     monthly = monthly_returns(portfolio_curve)
 
     if not monthly.empty:
-        # Format as percentages and color-code
+        # Format as percentages and color-code with brand palette
         styled = monthly.style.format("{:.2%}", na_rep="—").map(
             lambda v: (
-                "color: #00C805; font-weight: 600"
+                f"color: {BRAND_RED}; font-weight: 600"
                 if isinstance(v, (int, float)) and v > 0
                 else (
-                    "color: #FF4444; font-weight: 600"
+                    f"color: {STEEL_GRAY}; font-weight: 600"
                     if isinstance(v, (int, float)) and v < 0
-                    else "color: #888"
+                    else "color: #555B68"
                 )
             )
         )
@@ -416,6 +449,6 @@ if not closed_trades.empty:
 # ---------------------------------------------------------------------------
 st.markdown("---")
 st.caption(
-    f"Paper Trading Dashboard | Data from Yahoo Finance | "
+    f"Roper Advisory Group — Paper Trading Dashboard | Data from Yahoo Finance | "
     f"Benchmark: {BENCHMARK_TICKER} | Risk-Free Rate: {RISK_FREE_RATE:.1%}"
 )
