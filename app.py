@@ -59,29 +59,42 @@ GRID_COLOR = "#E8E8EC"
 st.markdown(
     f"""
     <style>
-    /* Metric cards */
-    .metric-card {{
-        background-color: {BRAND_CARD_BG};
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        border: 1px solid #E0E0E4;
+    /* Center the dashboard title */
+    h1 {{
+        text-align: center !important;
+        padding-bottom: 0.2rem !important;
     }}
-    .metric-label {{
-        font-size: 0.8rem;
-        color: {STEEL_GRAY};
+
+    /* Center subheaders */
+    h3 {{
+        text-align: center !important;
+        padding-top: 0.5rem !important;
+    }}
+
+    /* Center metrics within their columns */
+    [data-testid="stMetric"] {{
+        background-color: {BRAND_CARD_BG};
+        border: 1px solid #E0E0E4;
+        border-radius: 8px;
+        padding: 12px 8px;
+        text-align: center;
+    }}
+    [data-testid="stMetric"] > div {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }}
+    [data-testid="stMetric"] label {{
+        font-size: 0.8rem !important;
+        color: {STEEL_GRAY} !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }}
-    .metric-value {{
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin: 4px 0;
+    [data-testid="stMetric"] [data-testid="stMetricValue"] {{
+        font-size: 1.3rem !important;
     }}
-    .metric-compare {{
-        font-size: 0.75rem;
-        color: {STEEL_GRAY};
-    }}
+
+    /* Legacy metric card classes */
     .positive {{ color: #00A63E; }}
     .negative {{ color: {BRAND_RED}; }}
     .neutral  {{ color: {BRAND_CHARCOAL}; }}
@@ -91,14 +104,41 @@ st.markdown(
         display: none;
     }}
 
+    /* Center inception/updated line */
+    .inception-line {{
+        text-align: center;
+        color: {STEEL_GRAY};
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }}
+
     /* Divider styling */
     hr {{
         border-color: #E0E0E4 !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 1.5rem !important;
     }}
 
     /* Subtle red accent on sidebar */
     [data-testid="stSidebar"] {{
         border-right: 2px solid {BRAND_RED} !important;
+    }}
+
+    /* Center the footer caption */
+    .stCaption {{
+        text-align: center !important;
+    }}
+
+    /* Tabs centering */
+    .stTabs [data-baseweb="tab-list"] {{
+        justify-content: center;
+        gap: 1rem;
+    }}
+
+    /* Center dataframes */
+    [data-testid="stDataFrame"] {{
+        margin-left: auto;
+        margin-right: auto;
     }}
     </style>
     """,
@@ -160,10 +200,7 @@ else:
 st.title("Stoa Capital Management - Pilot")
 
 if trades.empty:
-    st.info(
-        "No trades loaded. Upload a WeBull CSV export from the sidebar, "
-        "or check 'Use sample data' to see a demo."
-    )
+    st.info("No trades loaded. Upload a WeBull trade export from the sidebar to get started.")
     st.stop()
 
 
@@ -212,7 +249,11 @@ def fmt_num(val, decimals=2):
 # ---------------------------------------------------------------------------
 # KPI Row
 # ---------------------------------------------------------------------------
-st.markdown(f"**Inception:** {inception_date} &nbsp;|&nbsp; **Last Updated:** {date.today()}")
+st.markdown(
+    f'<div class="inception-line"><strong>Inception:</strong> {inception_date} &nbsp;&bull;&nbsp; '
+    f'<strong>Last Updated:</strong> {date.today()}</div>',
+    unsafe_allow_html=True,
+)
 
 row1 = st.columns(4)
 with row1[0]:
@@ -245,7 +286,7 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # Equity curve + drawdown chart
 # ---------------------------------------------------------------------------
-st.subheader("Equity Curve — Portfolio vs SPY")
+st.subheader("Equity Curve")
 
 fig = make_subplots(
     rows=2,
@@ -465,8 +506,8 @@ if not exposure_df.empty:
         fig_pie.update_layout(
             height=350, template="plotly_white",
             paper_bgcolor=BRAND_BG, font=dict(color=BRAND_CHARCOAL),
-            title=dict(text="Sector Allocation", font=dict(size=14)),
-            margin=dict(l=20, r=20, t=40, b=20),
+            title=dict(text="Sector Allocation", font=dict(size=14), x=0.5, xanchor="center"),
+            margin=dict(l=20, r=20, t=50, b=20),
             showlegend=False,
         )
         st.plotly_chart(fig_pie, use_container_width=True)
@@ -485,8 +526,8 @@ if not exposure_df.empty:
             height=350, template="plotly_white",
             paper_bgcolor=BRAND_BG, plot_bgcolor=BRAND_BG,
             font=dict(color=BRAND_CHARCOAL),
-            title=dict(text="Top Holdings by Weight", font=dict(size=14)),
-            margin=dict(l=60, r=20, t=40, b=30),
+            title=dict(text="Top Holdings by Weight", font=dict(size=14), x=0.5, xanchor="center"),
+            margin=dict(l=60, r=20, t=50, b=30),
             xaxis=dict(tickformat=".0%", gridcolor=GRID_COLOR),
             yaxis=dict(autorange="reversed"),
         )
@@ -507,33 +548,28 @@ st.markdown("---")
 # ---------------------------------------------------------------------------
 # Performance comparison table + Monthly returns
 # ---------------------------------------------------------------------------
-col_left, col_right = st.columns([1, 2])
+st.subheader("Monthly Returns")
+monthly = monthly_returns(portfolio_curve)
 
-with col_left:
-    st.subheader("Performance Comparison")
-    comp = comparison_table(portfolio_curve, benchmark_curve)
-    st.dataframe(comp, hide_index=True, use_container_width=True)
-
-with col_right:
-    st.subheader("Monthly Returns")
-    monthly = monthly_returns(portfolio_curve)
-
-    if not monthly.empty:
-        # Format as percentages and color-code with brand palette
-        styled = monthly.style.format("{:.2%}", na_rep="—").map(
-            lambda v: (
-                "color: #00A63E; font-weight: 600"
-                if isinstance(v, (int, float)) and v > 0
-                else (
-                    f"color: {BRAND_RED}; font-weight: 600"
-                    if isinstance(v, (int, float)) and v < 0
-                    else "color: #A0A4AE"
-                )
+if not monthly.empty:
+    styled = monthly.style.format("{:.2%}", na_rep="--").map(
+        lambda v: (
+            "color: #00A63E; font-weight: 600"
+            if isinstance(v, (int, float)) and v > 0
+            else (
+                f"color: {BRAND_RED}; font-weight: 600"
+                if isinstance(v, (int, float)) and v < 0
+                else "color: #A0A4AE"
             )
         )
-        st.dataframe(styled, use_container_width=True)
-    else:
-        st.info("Not enough data for monthly returns")
+    )
+    st.dataframe(styled, use_container_width=True)
+else:
+    st.info("Not enough data for monthly returns")
+
+st.subheader("Performance Comparison")
+comp = comparison_table(portfolio_curve, benchmark_curve)
+st.dataframe(comp, hide_index=True, use_container_width=True)
 
 st.markdown("---")
 
@@ -544,31 +580,29 @@ st.subheader("Trade Statistics")
 
 stats = trade_statistics(closed_trades)
 
-col_a, col_b, col_c, col_d, col_e, col_f = st.columns(6)
-
-with col_a:
+ts_row1 = st.columns(5)
+with ts_row1[0]:
     st.metric("Total Trades", stats["total_trades"])
-with col_b:
-    st.metric("Win Rate", f"{stats['win_rate']:.1%}")
-with col_c:
-    st.metric("Avg Win", f"${stats['avg_win']:,.2f}")
-with col_d:
-    st.metric("Avg Loss", f"${stats['avg_loss']:,.2f}")
-with col_e:
-    st.metric("Profit Factor", f"{stats['profit_factor']:.2f}")
-with col_f:
-    st.metric("Expectancy", f"${stats['expectancy']:,.2f}")
-
-# Additional trade stats
-col_g, col_h, col_i, col_j = st.columns(4)
-with col_g:
+with ts_row1[1]:
     st.metric("Winners", stats["winners"])
-with col_h:
+with ts_row1[2]:
     st.metric("Losers", stats["losers"])
-with col_i:
+with ts_row1[3]:
+    st.metric("Win Rate", f"{stats['win_rate']:.1%}")
+with ts_row1[4]:
+    st.metric("Profit Factor", f"{stats['profit_factor']:.2f}")
+
+ts_row2 = st.columns(5)
+with ts_row2[0]:
+    st.metric("Avg Win", f"${stats['avg_win']:,.2f}")
+with ts_row2[1]:
+    st.metric("Avg Loss", f"${stats['avg_loss']:,.2f}")
+with ts_row2[2]:
     st.metric("Largest Win", f"${stats['largest_win']:,.2f}")
-with col_j:
+with ts_row2[3]:
     st.metric("Largest Loss", f"${stats['largest_loss']:,.2f}")
+with ts_row2[4]:
+    st.metric("Expectancy", f"${stats['expectancy']:,.2f}")
 
 st.markdown("---")
 
@@ -663,7 +697,9 @@ except Exception:
 # Footer
 # ---------------------------------------------------------------------------
 st.markdown("---")
-st.caption(
-    f"Stoa Capital Management - Pilot | Data from Yahoo Finance | "
-    f"Benchmark: {BENCHMARK_TICKER} | Risk-Free Rate: {RISK_FREE_RATE:.1%}"
+st.markdown(
+    f'<p style="text-align:center; color:{STEEL_GRAY}; font-size:0.8rem;">'
+    f"Stoa Capital Management - Pilot &nbsp;&bull;&nbsp; Data from Yahoo Finance &nbsp;&bull;&nbsp; "
+    f"Benchmark: {BENCHMARK_TICKER} &nbsp;&bull;&nbsp; Risk-Free Rate: {RISK_FREE_RATE:.1%}</p>",
+    unsafe_allow_html=True,
 )

@@ -173,10 +173,11 @@ def monthly_returns(equity_curve: pd.DataFrame) -> pd.DataFrame:
     ret_df["month"] = ret_df["date"].dt.month
 
     pivot = ret_df.pivot_table(index="year", columns="month", values="return")
-    pivot.columns = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-    ][: len(pivot.columns)]
+    month_names = {
+        1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr", 5: "May", 6: "Jun",
+        7: "Jul", 8: "Aug", 9: "Sep", 10: "Oct", 11: "Nov", 12: "Dec",
+    }
+    pivot.columns = [month_names[c] for c in pivot.columns]
 
     # Add YTD column
     pivot["YTD"] = (1 + pivot.fillna(0)).prod(axis=1) - 1
