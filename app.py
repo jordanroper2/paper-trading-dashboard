@@ -558,6 +558,8 @@ st.subheader("Monthly Returns")
 monthly = monthly_returns(portfolio_curve)
 
 if not monthly.empty:
+    # Data columns centered, year (index) left-aligned
+    data_cols = [c for c in monthly.columns]
     styled = (
         monthly.style
         .format("{:.2%}", na_rep="--")
@@ -572,10 +574,10 @@ if not monthly.empty:
                 )
             )
         )
-        .set_properties(**{"text-align": "center"})
+        .set_properties(subset=data_cols, **{"text-align": "center"})
         .set_table_styles([
-            {"selector": "th", "props": [("text-align", "center")]},
-            {"selector": "th.row_heading", "props": [("text-align", "center")]},
+            {"selector": "th.col_heading", "props": [("text-align", "center")]},
+            {"selector": "th.row_heading", "props": [("text-align", "left")]},
         ])
     )
     st.table(styled)
@@ -584,12 +586,13 @@ else:
 
 st.subheader("Performance Comparison")
 comp = comparison_table(portfolio_curve, benchmark_curve)
+comp = comp.set_index("Metric")
 comp_styled = (
     comp.style
-    .hide(axis="index")
-    .set_properties(**{"text-align": "center"})
+    .set_properties(subset=["Portfolio", "SPY"], **{"text-align": "center"})
     .set_table_styles([
-        {"selector": "th", "props": [("text-align", "center")]},
+        {"selector": "th.col_heading", "props": [("text-align", "center")]},
+        {"selector": "th.row_heading", "props": [("text-align", "left")]},
     ])
 )
 st.table(comp_styled)

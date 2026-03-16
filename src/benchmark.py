@@ -115,10 +115,14 @@ def comparison_table(
     b = benchmark_metrics(benchmark_curve)
 
     def fmt_pct(val):
-        return f"{val:.2%}" if val is not None else "—"
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return "—"
+        return f"{val:.2%}"
 
     def fmt_num(val):
-        return f"{val:.2f}" if val is not None else "—"
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            return "—"
+        return f"{val:.2f}"
 
     rows = [
         {"Metric": "Total Return", "Portfolio": fmt_pct(p['total_return']), "SPY": fmt_pct(b['total_return'])},
