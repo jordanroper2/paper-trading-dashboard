@@ -99,10 +99,10 @@ class TearSheet(FPDF):
     def header(self):
         self.set_font("Helvetica", "B", 16)
         self.set_text_color(28, 29, 42)  # CHARCOAL
-        self.cell(0, 8, "Roper Advisory Group", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 8, "Stoa Capital Management - Pilot", new_x="LMARGIN", new_y="NEXT")
         self.set_font("Helvetica", "", 10)
         self.set_text_color(107, 122, 141)  # STEEL_GRAY
-        self.cell(0, 5, "Paper Trading Performance Tear Sheet", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 5, "Performance Tear Sheet", new_x="LMARGIN", new_y="NEXT")
         self.ln(2)
         # Red accent line
         self.set_draw_color(212, 33, 61)

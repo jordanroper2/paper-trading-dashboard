@@ -1,5 +1,5 @@
 """
-Paper Trading Performance Dashboard
+Stoa Capital Management - Pilot Dashboard
 ====================================
 Streamlit dashboard that tracks WeBull paper trading performance
 with full metrics benchmarked against SPY.
@@ -36,7 +36,7 @@ from src.tearsheet import generate_tearsheet
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Roper Advisory Group — Paper Trading",
+    page_title="Stoa Capital Management - Pilot",
     page_icon="🔺",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -46,7 +46,7 @@ st.set_page_config(
 # Custom CSS
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
-# Brand palette (derived from Roper Advisory Group logo)
+# Brand palette
 # ---------------------------------------------------------------------------
 BRAND_RED = "#D4213D"
 BRAND_CHARCOAL = "#1C1D2A"
@@ -157,7 +157,7 @@ else:
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
-st.title("Paper Trading Dashboard")
+st.title("Stoa Capital Management - Pilot")
 
 if trades.empty:
     st.info(
@@ -652,7 +652,7 @@ try:
     tearsheet_placeholder.download_button(
         label="📄 Download Tear Sheet (PDF)",
         data=pdf_bytes,
-        file_name=f"RAG_tearsheet_{date.today()}.pdf",
+        file_name=f"SCM_tearsheet_{date.today()}.pdf",
         mime="application/pdf",
         use_container_width=True,
     )
@@ -664,6 +664,6 @@ except Exception:
 # ---------------------------------------------------------------------------
 st.markdown("---")
 st.caption(
-    f"Roper Advisory Group — Paper Trading Dashboard | Data from Yahoo Finance | "
+    f"Stoa Capital Management - Pilot | Data from Yahoo Finance | "
     f"Benchmark: {BENCHMARK_TICKER} | Risk-Free Rate: {RISK_FREE_RATE:.1%}"
 )
