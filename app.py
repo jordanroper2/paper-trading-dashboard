@@ -140,6 +140,12 @@ st.markdown(
         margin-left: auto;
         margin-right: auto;
     }}
+
+    /* Center all dataframe cell content (headers + data) */
+    [data-testid="stDataFrame"] th,
+    [data-testid="stDataFrame"] td {{
+        text-align: center !important;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -552,24 +558,41 @@ st.subheader("Monthly Returns")
 monthly = monthly_returns(portfolio_curve)
 
 if not monthly.empty:
-    styled = monthly.style.format("{:.2%}", na_rep="--").map(
-        lambda v: (
-            "color: #00A63E; font-weight: 600"
-            if isinstance(v, (int, float)) and v > 0
-            else (
-                f"color: {BRAND_RED}; font-weight: 600"
-                if isinstance(v, (int, float)) and v < 0
-                else "color: #A0A4AE"
+    styled = (
+        monthly.style
+        .format("{:.2%}", na_rep="--")
+        .map(
+            lambda v: (
+                "color: #00A63E; font-weight: 600"
+                if isinstance(v, (int, float)) and v > 0
+                else (
+                    f"color: {BRAND_RED}; font-weight: 600"
+                    if isinstance(v, (int, float)) and v < 0
+                    else "color: #A0A4AE"
+                )
             )
         )
+        .set_properties(**{"text-align": "center"})
+        .set_table_styles([
+            {"selector": "th", "props": [("text-align", "center")]},
+            {"selector": "th.row_heading", "props": [("text-align", "center")]},
+        ])
     )
-    st.dataframe(styled, use_container_width=True)
+    st.table(styled)
 else:
     st.info("Not enough data for monthly returns")
 
 st.subheader("Performance Comparison")
 comp = comparison_table(portfolio_curve, benchmark_curve)
-st.dataframe(comp, hide_index=True, use_container_width=True)
+comp_styled = (
+    comp.style
+    .hide(axis="index")
+    .set_properties(**{"text-align": "center"})
+    .set_table_styles([
+        {"selector": "th", "props": [("text-align", "center")]},
+    ])
+)
+st.table(comp_styled)
 
 st.markdown("---")
 
