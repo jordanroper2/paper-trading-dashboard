@@ -1,5 +1,5 @@
 """
-Stoa Capital Management - Pilot Dashboard
+Vector Growth Capital - Pilot Dashboard
 ====================================
 Streamlit dashboard that tracks WeBull paper trading performance
 with full metrics benchmarked against SPY.
@@ -36,7 +36,7 @@ from src.tearsheet import generate_tearsheet
 # Page config
 # ---------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Stoa Capital Management - Pilot",
+    page_title="Vector Growth Capital - Pilot",
     page_icon="🔺",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -203,7 +203,7 @@ else:
 # ---------------------------------------------------------------------------
 # Header
 # ---------------------------------------------------------------------------
-st.title("Stoa Capital Management - Pilot")
+st.title("Vector Growth Capital - Pilot")
 
 if trades.empty:
     st.info("No trades loaded. Upload a WeBull trade export from the sidebar to get started.")
@@ -712,7 +712,7 @@ try:
     tearsheet_placeholder.download_button(
         label="📄 Download Tear Sheet (PDF)",
         data=pdf_bytes,
-        file_name=f"SCM_tearsheet_{date.today()}.pdf",
+        file_name=f"VGC_tearsheet_{date.today()}.pdf",
         mime="application/pdf",
         use_container_width=True,
     )
@@ -725,7 +725,7 @@ except Exception:
 st.markdown("---")
 st.markdown(
     f'<p style="text-align:center; color:{STEEL_GRAY}; font-size:0.8rem;">'
-    f"Stoa Capital Management - Pilot &nbsp;&bull;&nbsp; Data from Yahoo Finance &nbsp;&bull;&nbsp; "
+    f"Vector Growth Capital - Pilot &nbsp;&bull;&nbsp; Data from Yahoo Finance &nbsp;&bull;&nbsp; "
     f"Benchmark: {BENCHMARK_TICKER} &nbsp;&bull;&nbsp; Risk-Free Rate: {RISK_FREE_RATE:.1%}</p>",
     unsafe_allow_html=True,
 )
